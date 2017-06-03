@@ -121,6 +121,8 @@ var locations = [
         icon: defaultIcon,
         id: i
       });
+      // Attach the marker to he place object
+      vm.places()[i].marker = marker;
       // Push the marker to our array of markers.
       markers.push(marker);
       // Create an onclick event to open an infowindow at each marker.
@@ -129,13 +131,15 @@ var locations = [
       });
       // Two event listeners - one for mouseover, one for mouseout,
       // to change the colors back and forth.
-      marker.addListener('mouseover', function() {
+      marker.addListener('click', function() {
         this.setIcon(highlightedIcon);
+        this.setAnimation(google.maps.Animation.BOUNCE);
       });
       marker.addListener('mouseout', function() {
         this.setIcon(defaultIcon);
+        this.setAnimation(null);
       });
-    }
+    };
 
   // This function populates the infowindow when the marker is clicked. We'll only allow
   // one infowindow which will open at the marker that is clicked, and populate based
@@ -198,6 +202,30 @@ var locations = [
   };
 }
 
+function loadArticles() {
+  // load nytimes
+  var $nytElem = $('#places-list');
+  $nytElem.text('');
+
+  var placeStr = $(vm.places()[i].title).val();
+
+  var nytimesUrl = 'http://api.nytimes.com/svc/search/v2/articlesearch.json?q=' + placeStr + '&sort=newest&api-key=0dade8ebd7a448ada515bb4ec61b9cb1';
+  $.getJSON(nytimesUrl, function(data){
+
+      articles = data.response.docs;
+      for (var i = 0; i < articles.length; i++) {
+          var article = articles[i];
+          $nytElem.append('<li class="place-article">'+
+              '<a href="'+article.web_url+'">'+article.headline.main+'</a>'+
+              'data-bind="text: nytarticle"'+
+          '</li>');
+      };
+
+  }).error(function(e){
+      $nytElem.text('New York Times Articles Could Not Be Loaded');
+  });
+}
+
 // My ViewModel.
 ViewModel = function(){
   var self = this;
@@ -206,40 +234,55 @@ ViewModel = function(){
         {   title: '40 Mile Saloon',
             address: '1495 S Virginia St, Reno, NV 89502',
             pnumber: '(775) 323-1877',
+            nytarticle: ''
         },
         {   title: 'The Brewers Cabinet',
             address: '475 S Arlington Ave, Reno, NV 89501',
             pnumber: '(775) 348-7481',
+            nytarticle: ''
         },
         {   title: 'Plumas Park',
             address: '1200 Plumas St, Reno, NV 89500',
             pnumber: 'N/A',
+            nytarticle: ''
         },
         {   title: 'The Melting Pot',
             address: '1049 S Virginia St, Reno, NV 89502',
             pnumber: '(775) 322-9445',
+            nytarticle: ''
         },
         {   title: 'The Studio',
             address: '1085 S Virginia St, Reno, NV 89502',
             pnumber: '(775) 284-5545',
+            nytarticle: ''
         }
   ]);
 
-  self.addPlace = ko.computed(function() {
-    return self.places().push({title: "", address: "", pnumber:""});
-  }, self);
 
 // Filters 'Top Places'.
   self.filter = ko.observable('');
   self.filteredPlaces = ko.computed(function() {
       var filter = self.filter().toLowerCase();
       if (!filter) {
+        self.places().forEach(function(place) {
+          if(place.marker) {
+          place.marker.setVisible(true);
+          }
+        });
           return self.places();
       } else {
           return ko.utils.arrayFilter(self.places(), function(place) {
-              return place.title.toLowerCase().indexOf(filter) > -1;
+              if(place.title.toLowerCase().indexOf(filter) > -1) {
+              	 place.marker.setVisible(true);
+                 return true;
+              }
+                else {
+                  place.marker.setVisible(false);
+                  return false;
+                }
           });
       }
   }, self);
 }
-ko.applyBindings(new ViewModel());
+var vm = new ViewModel();
+ko.applyBindings(vm);
